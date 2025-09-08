@@ -2,7 +2,6 @@ import streamlit as st
 import sqlite3
 import qrcode
 import numpy as np
-import face_recognition
 import os
 import cv2
 from db_utils import init_db,qr_attendance_page,mark_attendance,fetch_attendance,add_student,fetch_student

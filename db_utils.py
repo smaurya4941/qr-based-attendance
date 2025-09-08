@@ -4,8 +4,8 @@ import streamlit as st
 import sqlite3
 import qrcode
 import numpy as np
-import face_recognition
 from pyzbar.pyzbar import decode
+from PIL import Image
 import cv2
 
 
@@ -65,21 +65,7 @@ def add_student(name,roll,class_name,img_file):
         qr=qrcode.make(roll) #generating qrcode
         qr.save(f"qrcodes/{roll}.png")  #saving qrcode as png format for  each regisyred student in qrcodes folder
 
-        # FACE ENCODINGS
-        if img_file is not None:
-            #directly image cannot be undrerstand by poencv so first conver to bytearray then as array
-            file_bytes=np.asarray(bytearray(img_file.read()),dtype=np.uint8) 
-            img=cv2.imdecode(file_bytes,1)
-            rgb_img=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)  #convertng img to RGB format
-            encodings=face_recognition.face_encodings(rgb_img)  # generating encoding for image
-
-            if encodings:
-                np.save(f"encodings/{roll}.npy",encodings[0])
-                st.success("Face encoding is saved")
-            else:
-                st.warning("Face is not detedcted in uploaded image")
-
-
+        
         st.success(f" student {name} addedd successfully! with qrcode and face encodings")
     except sqlite3.IntegrityError:
         st.error("Roll number already exists")
@@ -152,40 +138,74 @@ def mark_attendance(roll):
 
 
 #Setting up QR Scanner with opencv and pyzbar
-def scan_qr():
-    cap=cv2.VideoCapture(0)
+# def scan_qr():
+#     cap=cv2.VideoCapture(0)
 
-    while True:
-        ret,frame=cap.read()
+#     while True:
+#         ret,frame=cap.read()
 
-        if not ret:
-            st.warning("could not read frame")
-            break
+#         if not ret:
+#             st.warning("could not read frame")
+#             break
 
-    #copy pasted code
-        for qr in decode(frame):
-            qr_data = qr.data.decode("utf-8")
-            # Draw rectangle
-            pts = qr.polygon
-            pts = [(pt.x, pt.y) for pt in pts]
-            pts = cv2.convexHull(np.array(pts, dtype=np.int32))
-            cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
-            cv2.putText(frame, qr_data, (qr.rect.left, qr.rect.top - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
-            cap.release()
-            cv2.destroyAllWindows()
-            return qr_data  # Return first scanned QR(returnning roll number)
+#     #copy pasted code
+#         for qr in decode(frame):
+#             qr_data = qr.data.decode("utf-8")
+#             # Draw rectangle
+#             pts = qr.polygon
+#             pts = [(pt.x, pt.y) for pt in pts]
+#             pts = cv2.convexHull(np.array(pts, dtype=np.int32))
+#             cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
+#             cv2.putText(frame, qr_data, (qr.rect.left, qr.rect.top - 10),
+#                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+#             cap.release()
+#             cv2.destroyAllWindows()
+#             return qr_data  # Return first scanned QR(returnning roll number)
         
     
-        cv2.imshow("QR Scanner - Press Q to exit", frame)
+#         cv2.imshow("QR Scanner - Press Q to exit", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+#         if cv2.waitKey(1) & 0xFF == ord("q"):
+#             break
 
-    cap.release()
-    cv2.destroyAllWindows()
+#     cap.release()
+#     cv2.destroyAllWindows()
+#     return None
+
+#FOR STREAMLIT DEPLOY
+def scan_qr():
+    st.info("Scan a QR Code using your webcam")
+
+    # Streamlit camera input
+    img_file = st.camera_input("Take a picture of the QR Code")
+
+    if img_file is not None:
+        # Convert to OpenCV format
+        img = Image.open(img_file)
+        frame = np.array(img)
+
+        # Decode QR
+        decoded_objs = decode(frame)
+        qr_data = None
+        for obj in decoded_objs:
+            qr_data = obj.data.decode("utf-8")
+
+            # Draw rectangle around QR
+            pts = [(pt.x, pt.y) for pt in obj.polygon]
+            pts = np.array(pts, dtype=np.int32)
+            cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
+            cv2.putText(frame, qr_data, (obj.rect.left, obj.rect.top - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+
+        # Show scanned frame in Streamlit
+        st.image(frame, channels="RGB")
+
+        if qr_data:
+            return qr_data
+        else:
+            st.warning("No QR code detected. Please try again.")
+
     return None
-
 
 
 #QR Attendance page
